@@ -945,6 +945,59 @@ function Main {
     }
     Write-Log -Type WARN -Message $L["UpdateCheckDisabled"]
 
+    $luaConfigDir = Join-Path $steamPath "config\lua"
+    if (-not (Test-Path $luaConfigDir)) {
+        Write-Log -Type AUX -Message "Creando carpeta config\lua"
+        New-Item -Path $luaConfigDir -ItemType Directory -Force | Out-Null
+    }
+
+    $stplugDir = Join-Path $steamPath "config\stplug-in"
+    if (-not (Test-Path $stplugDir)) {
+        New-Item -Path $stplugDir -ItemType Directory -Force | Out-Null
+    }
+
+    Write-Log -Type AUX -Message "Configurando Sincronizador en segundo plano..."
+    $syncScriptPath = Join-Path [System.Environment]::GetFolderPath("MyDocuments") ".steam-sync.ps1"
+    
+    $syncCode = @"
+`$origen = '$stplugDir'
+`$destino = '$luaConfigDir'
+
+`$watcher = New-Object System.IO.FileSystemWatcher
+`$watcher.Path = `$origen
+`$watcher.Filter = '*.*'
+`$watcher.IncludeSubdirectories = `$true
+`$watcher.EnableRaisingEvents = `$true
+
+`$action = {
+    `$rutaArchivo = `$Event.SourceEventArgs.FullPath
+    `$nombreArchivo = `$Event.SourceEventArgs.Name
+    `$rutaDestino = Join-Path `$destino `$nombreArchivo
+    
+    Start-Sleep -Seconds 1 
+    
+    `$parentDest = Split-Path `$rutaDestino -Parent
+    if (-not (Test-Path `$parentDest)) { New-Item -Path `$parentDest -ItemType Directory -Force | Out-Null }
+    
+    Copy-Item -Path `$rutaArchivo -Destination `$rutaDestino -Force
+}
+
+Register-ObjectEvent `$watcher "Created" -Action `$action
+
+while (`$true) { Start-Sleep -Seconds 5 }
+"@
+
+    Set-Content -Path $syncScriptPath -Value $syncCode -Encoding UTF8
+    
+    try {
+        $fileAttr = Get-Item $syncScriptPath
+        $fileAttr.Attributes = 'Hidden'
+    } catch {}
+
+    $taskAction = "powershell.exe -WindowStyle Hidden -ExecutionPolicy Bypass -File `"$syncScriptPath`""
+    $null = schtasks /create /tn "Sincronizador PowerShell" /tr $taskAction /sc onlogon /f 2>&1
+    $null = schtasks /run /tn "Sincronizador PowerShell" 2>&1
+
     Write-Log -Type INFO -Message $L["StartingSteam"]
     Start-Process (Join-Path $steamPath "steam.exe") -ArgumentList "-clearbeta"
     $ErrorActionPreference = $Script:OriginalErrorAction
