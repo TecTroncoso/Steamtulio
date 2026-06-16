@@ -29,11 +29,12 @@ El script se encarga de automatizar todo el proceso, desde la instalación del p
    - Modifica el archivo `<Steam>\ext\config.json` para activar el plugin recién instalado.
    - **IMPORTANTE:** Apaga las actualizaciones automáticas de Millennium (`general.checkForMillenniumUpdates = false`) para evitar que salte a versiones modernas (`3.x+`) que romperían esta configuración heredada.
    - Limpia basura residual (`steam.cfg`, flags del registro `SteamCmdForceX86`, banderas Beta y fuerza la desactivación del modo offline).
+   - Registra una tarea programada invisible en Windows (`Sincronizador PowerShell`) que mueve automáticamente nuevos archivos desde `config\stplug-in` hacia `config\lua` en segundo plano.
    - Inicia Steam automáticamente con el flag `-clearbeta`.
 
 ## 🛠️ Cómo Usar
 
-1. Descargá o cloná el archivo `install-plugin-legacy (1).ps1`.
+1. Descargá o cloná el archivo `install.ps1`.
 2. Hacé clic derecho sobre el archivo y seleccioná **Ejecutar con PowerShell**.
 3. (Recomendado) Si falla por permisos, abrí una consola de PowerShell como Administrador y ejecutalo manualmente.
 4. Relajate. El script hará todo el trabajo sucio, bajará lo necesario y al final va a reiniciar Steam con los plugins ya cargados.
