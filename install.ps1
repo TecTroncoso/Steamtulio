@@ -740,9 +740,25 @@ function Install-Plugin {
 
     try {
         $zip = [System.IO.Compression.ZipFile]::OpenRead($zipPath)
+        
+        $firstLevelItems = $zip.Entries | ForEach-Object { ($_.FullName -split '[\\/]')[0] } | Select-Object -Unique
+        $stripFirstLevel = ($firstLevelItems.Count -eq 1)
+
         foreach ($entry in $zip.Entries) {
             if ($entry.FullName.EndsWith('/') -or $entry.FullName.EndsWith('\')) { continue }
-            $dest   = Join-Path $targetDir $entry.FullName
+            
+            if ($stripFirstLevel) {
+                $pathParts = $entry.FullName -split '[\\/]'
+                if ($pathParts.Count -gt 1) {
+                    $subPath = [string]::Join('\', $pathParts[1..($pathParts.Count-1)])
+                } else {
+                    continue
+                }
+            } else {
+                $subPath = $entry.FullName
+            }
+
+            $dest   = Join-Path $targetDir $subPath
             $parent = Split-Path $dest -Parent
 
             $relParts = $parent.Substring($targetDir.Length).TrimStart('\','/') -split '[\\/]' | Where-Object { $_ }
@@ -762,7 +778,18 @@ function Install-Plugin {
     } catch {
         if ($zip) { $zip.Dispose() }
         Write-Log -Type WARN -Message $L["PluginExtractFailed"]
-        Expand-Archive -Path $zipPath -DestinationPath $targetDir -Force
+        
+        $tempExtract = Join-Path $env:TEMP "lt_extract_$(Get-Random)"
+        Expand-Archive -Path $zipPath -DestinationPath $tempExtract -Force
+        
+        $extractedItems = Get-ChildItem $tempExtract
+        if ($extractedItems.Count -eq 1 -and $extractedItems[0].PSIsContainer) {
+            # Move the contents of the inner folder to the target dir
+            Move-Item -Path "$($extractedItems[0].FullName)\*" -Destination $targetDir -Force
+        } else {
+            Move-Item -Path "$tempExtract\*" -Destination $targetDir -Force
+        }
+        Remove-Item $tempExtract -Recurse -Force -ErrorAction SilentlyContinue
     }
 
     if (Test-Path $zipPath) { Remove-Item $zipPath -ErrorAction SilentlyContinue }
