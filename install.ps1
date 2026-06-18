@@ -957,7 +957,7 @@ function Main {
     }
 
     Write-Log -Type AUX -Message "Configurando Sincronizador en segundo plano..."
-    $syncScriptPath = Join-Path [System.Environment]::GetFolderPath("MyDocuments") ".steam-sync.ps1"
+    $syncScriptPath = Join-Path ([System.Environment]::GetFolderPath("MyDocuments")) ".steam-sync.ps1"
     
     $syncCode = @"
 `$origen = '$stplugDir'
